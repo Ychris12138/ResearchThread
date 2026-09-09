@@ -73,43 +73,47 @@ updated: 2026-09-10
 
 人写区与 agent 维护区分离，例如以 `## AI Summary` 章节作为 agent 专属写入区，避免覆盖人工内容。
 
-## 四、技术选型（简化版）
+## 四、技术选型（第一阶段）
 
-原则：**零自定义 Rust、无前端框架、运行时依赖 ≤ 3 个包**。
+原则：**起步极简，架构为扩展预留**——零自定义 Rust、无前端框架、依赖按需引入（起步 ~4 个包）。`storage.ts` 独立封装，后续引入框架、组件库或自研 Rust 模块时数据层不动。
 
 | 层 | 选择 | 说明 |
 |---|---|---|
-| 框架 | Tauri 2（vanilla-ts 模板，`npm create tauri-app` 一条命令） | Rust 侧保持模板原样 |
-| 文件读写 | 官方 `tauri-plugin-fs`（JS API） | 不写任何 Rust command |
-| 前端 | 原生 TypeScript + Vite | 无 React / Tailwind / UI 库 |
+| 框架 | Tauri 2（vanilla-ts 模板，`npm create tauri-app` 一条命令） | Rust 侧起步保持模板原样 |
+| 文件读写 | 官方 `tauri-plugin-fs`（JS API） | 起步不写 Rust command |
+| 前端 | 原生 TypeScript + Vite | 先无框架；规模变大可换，storage 层不动 |
 | 状态 | 普通 TS 模块 | 无状态管理库 |
-| 样式 | 手写 CSS（~300 行） | 三栏布局 |
+| 样式 | 手写 CSS | IDE 式布局（见下） |
 | 编辑 | `<textarea>`；预览可选 `marked` | 无 CodeMirror |
+| 终端面板 | `tauri-plugin-shell`（spawn + stdin 写入 + stdout 流式）+ `@xterm/xterm`（+ addon-fit）显示 | 工作目录默认数据目录，可直接调用 CLI agent（`claude -p`、`codex exec` 等）；需在 capabilities 放开 shell 执行权限 |
 | frontmatter | ~40 行自写 TS 解析（固定 schema） | 需要时再换 js-yaml |
-| 搜索 | 内存中字符串匹配 | 数据量小，够用 |
+| 搜索 | 内存中字符串匹配 | 数据量增长后可上索引 |
 | 备份 | 数据目录 git 化 | 版本历史 = 项目完整性的一部分 |
+
+终端面板说明：plugin-shell 方案可跑一次性/流式命令，满足调用 agent CLI 的需求；**真 PTY**（完全交互式 TUI）后续如需要，需引入少量 Rust（如 `portable-pty`），届时再决策。
 
 代码结构：
 
 ```
 src/
-├── storage.ts   ← 唯一数据层：markdown 文件树读写 + frontmatter 解析（独立封装，将来换 UI 框架不用动）
-├── ui.ts        ← 三栏渲染（空间/项目树、任务列表、详情编辑）
-├── main.ts
+├── storage.ts     ← 唯一数据层：markdown 文件树读写 + frontmatter 解析（独立封装，将来换 UI 框架不用动）
+├── views.ts       ← 中间展示区视图（任务列表、项目上下文等）
+├── terminal.ts    ← 底部终端面板（plugin-shell + xterm.js）
+├── main.ts        ← 布局骨架与右栏/底部面板开关
 └── style.css
 ```
 
 已接受的代价：DOM 手动更新（应用本质是树+列表+表单，规模可控）；textarea 无编辑器增强（需要时再引入 CodeMirror）。
 
-## 五、UI（第一步：三栏）
+## 五、UI（IDE 式四区布局）
 
-- 左栏：空间/项目树 + 收件箱入口
-- 中栏：任务列表（按状态分组、☆ 置顶、显示 next action、一键勾选/加星/搁置）
-- 右栏：任务详情（frontmatter 元数据 + textarea 上下文编辑）
-- 项目页：项目上下文 + 该项目任务总览
+- **左侧栏（常驻）**：空间/项目树 + 收件箱入口
+- **中间展示区**：主工作区，按视图切换——任务列表（按状态分组、☆ 置顶、显示 next action）、项目上下文、今日视角（M3+）
+- **底部面板（可开关）**：第一阶段为内置终端，工作目录即数据目录，方便调用 CLI agent；第二阶段演化为 agent 唤起/对话面板
+- **右侧栏（可开关）**：选中任务/项目的详情与上下文编辑（元数据表单 + markdown 编辑）
 
 ## 六、里程碑
 
-- **M1** 脚手架 + storage 层 + 三栏 UI：可创建/编辑空间、项目、任务
-- **M2** 任务操作：状态/☆/next action + 快速捕获收件箱 + 周文档一键生成
-- **M3** 打磨：全文搜索、归档、markdown 预览
+- **M1** 脚手架 + storage 层 + 布局骨架（左树 / 中展示 / 右可开关详情栏）：可创建/编辑空间、项目、任务
+- **M2** 任务操作：状态/☆/next action + 快速捕获收件箱 + 底部终端面板（plugin-shell + xterm.js，可调 CLI agent）
+- **M3** 周文档一键生成 + 打磨：全文搜索、归档、markdown 预览、真 PTY 终端评估

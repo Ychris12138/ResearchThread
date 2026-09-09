@@ -13,12 +13,14 @@
 | [PLAN.md](PLAN.md) | 需求 + 技术计划（唯一事实来源） |
 | [AGENTS.md](AGENTS.md) | AI agent 工作上下文：关键决策、数据规范、协作约定 |
 
-## 技术栈（极简原则：零自定义 Rust、无前端框架、运行时依赖 ≤ 3）
+## 技术栈（第一阶段起步极简，架构为扩展预留）
 
 - Tauri 2（vanilla-ts 模板）
 - 原生 TypeScript + Vite，手写 CSS，`<textarea>` 编辑
-- 文件 IO：官方 `tauri-plugin-fs`（JS API）
+- 文件 IO：官方 `tauri-plugin-fs`；终端面板：`tauri-plugin-shell` + `@xterm/xterm`
 - 数据：Markdown 文件树 + YAML frontmatter（可用 Obsidian / git 直接操作）
+
+UI 布局：左侧栏（空间/项目树）｜中间展示区｜底部可开关面板（第一阶段内置终端，第二阶段 agent 唤起）｜右侧可开关侧边栏（详情/上下文编辑）。
 
 ## 快速开始
 
