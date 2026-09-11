@@ -70,6 +70,8 @@ export interface Settings {
   agentWriteLog: boolean;
   agentConfirmWrites: boolean;
   plugins: PluginFlags;
+  /** 首启欢迎提示是否已看过（种子版安装后引导） */
+  introSeen: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -98,6 +100,7 @@ export const DEFAULT_SETTINGS: Settings = {
   agentMode: "plan",
   agentWriteLog: true,
   agentConfirmWrites: true,
+  introSeen: false,
   plugins: {
     files: true,
     journal: true,

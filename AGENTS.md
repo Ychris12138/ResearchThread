@@ -32,6 +32,7 @@ ResearchThread 是一个**本地优先**的桌面工具（Tauri 2，macOS + Wind
   - **周报正确性**：任务定位主键改完整相对路径（修跨项目同名任务归错），活跃工作线 ☆ 置顶稳定排序
   - **watcher 路径归一化**：Windows 反斜杠事件先归一再剥数据目录前缀（此前 `.git` / `.activity` 过滤失配、活动账记绝对路径）；`.rt-bak` 一并过滤
   - **发布物料**：关于页读真实版本（`getVersion()`）标「种子测试版」；[docs/seed-manual.md](docs/seed-manual.md) 种子手册——隐私边界（**明确撤回「打包数据目录反馈」**，改为脱敏反馈模板）、SmartScreen 安装步骤、卸载数据保留说明、外部编辑并发规则
+  - **发布包与安装提示**：`npm run make-release`（[scripts/make-release.mjs](scripts/make-release.mjs)）把 NSIS 安装包、SHA256SUMS、README、种子手册归拢到 `release/`（gitignore，脚本可重复生成）；安装器中文化（`bundle.windows.nsis.languages` 简中+英文+语言选择器）并以 `bundle.license`（`src-tauri/INSTALL-NOTES.txt`）在安装前展示中文安装须知；应用首启弹欢迎卡（数据位置/快照警告含义/脱敏反馈，`settings.introSeen` 持久化开关）
 - 下一步：干净 Windows 账户实测（首装 / 无 git / 无 CLI / 双开 / 升级 / 卸载重装 / 快照恢复演练）→ 全部过门后打 release tag 发 **Windows x64 受控种子版**；随后回到 **第二步阶梯 2a**（AgentRunner CLI 后端，见下条与 PART2.md）
 - 第二步技术报告见 [PART2.md](PART2.md)：CLI 后端选型（claude 首选/codex 坑清单）、MCP 工具面与 will_write 归属协议、2c 解析器选型、风险登记册与排期——**实施 2a–2d 前必读**
 - **Windows 构建环境（本机）**：Rust stable-msvc 装了但**缺 Windows SDK**（提权安装 SDK 未获批准）；当前用 `stable-x86_64-pc-windows-gnu` + `rust-lld` + Strawberry Perl 的 dlltool 编译通过。**启动命令**：
@@ -41,7 +42,7 @@ ResearchThread 是一个**本地优先**的桌面工具（Tauri 2，macOS + Wind
   npm run tauri dev
   ```
   `src-tauri/.cargo/config.toml` 固定了 rust-lld 链接器；`Cargo.toml` 的 lib crate-type 只保留 `["lib"]`（cdylib 会撞 65535 导出上限）。改 `capabilities/*.json` 后需 `touch build.rs && cargo build` 强制重嵌（dev watch 不监听 capabilities）。
-- **打包安装器**：`npm run tauri build`（同上环境）→ NSIS 安装包在 `src-tauri/target/release/bundle/nsis/`，per-user 安装免管理员。**坑**：GNU 构建动态链接 `WebView2Loader.dll`（dev 时由构建目录提供，安装后缺失会导致启动即退 EXIT=127）——已通过 `bundle.resources` 打进安装器（`src-tauri/WebView2Loader.dll`，勿删）；升级 webview2-com-sys 后需同步更新该 dll。安装器未签名，首次安装会过 SmartScreen 警告。
+- **打包安装器**：`npm run tauri build`（同上环境）→ NSIS 安装包在 `src-tauri/target/release/bundle/nsis/`，per-user 安装免管理员；随后 `npm run make-release` 归拢发布包到 `release/`（安装包 + SHA256SUMS + README + 种子手册）。**坑**：GNU 构建动态链接 `WebView2Loader.dll`（dev 时由构建目录提供，安装后缺失会导致启动即退 EXIT=127）——已通过 `bundle.resources` 打进安装器（`src-tauri/WebView2Loader.dll`，勿删）；升级 webview2-com-sys 后需同步更新该 dll。安装器未签名，首次安装会过 SmartScreen 警告（安装须知页已说明「更多信息→仍要运行」）。
 - 终端面板 shell 白名单：`capabilities/default.json` 中 `shell:allow-spawn`/`shell:allow-execute` 的 allow 条目（name/cmd/args:true），新增可执行程序需同步加两处
 
 ## 关键决策（改动前必须与用户确认）

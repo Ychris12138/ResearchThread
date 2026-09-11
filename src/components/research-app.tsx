@@ -37,6 +37,7 @@ import { AgentView } from "@/components/agent-view";
 import { PluginsView } from "@/components/plugins-view";
 import { SearchView } from "@/components/search-view";
 import { GraphView, TodayView, WeeklyView } from "@/components/extra-views";
+import { openInFileManager } from "@/storage/git";
 import { useSettings, type AppView } from "@/lib/settings";
 
 type CenterTab = "tasks" | "context";
@@ -55,6 +56,7 @@ export function ResearchApp({
   const defaultTab = useSettings((s) => s.defaultTab);
   const focusInspector = useSettings((s) => s.focusInspector);
   const plugins = useSettings((s) => s.plugins);
+  const introSeen = useSettings((s) => s.introSeen);
   const patch = useSettings((s) => s.patch);
 
   const [spaces, setSpaces] = useState<Space[]>(initialSpaces);
@@ -649,6 +651,10 @@ export function ResearchApp({
 
       {settingsOpen ? <SettingsModal onClose={() => setSettingsOpen(false)} /> : null}
 
+      {!introSeen ? (
+        <FirstRunIntro onClose={() => patch({ introSeen: true })} />
+      ) : null}
+
       {conflict ? (
         <div className="absolute left-1/2 top-10 z-40 flex max-w-[80%] -translate-x-1/2 items-center gap-3 rounded-full border border-border-subtle bg-bg-elevated px-4 py-1.5 text-small shadow-[var(--shadow-float)]">
           <span className="min-w-0 truncate text-text-dim">
@@ -778,5 +784,71 @@ function TabBtn({
     >
       {children}
     </button>
+  );
+}
+
+/** 种子版安装后的首启提示：数据在哪、快照警告含义、并发与反馈渠道 */
+function FirstRunIntro({ onClose }: { onClose: () => void }) {
+  const dir = currentDataDir();
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        className="absolute inset-0 bg-scrim"
+        aria-label="关闭提示"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="欢迎"
+        className="relative w-full max-w-lg rounded-2xl bg-bg-elevated p-6 shadow-[var(--shadow-float)]"
+      >
+        <h2 className="mb-1 text-title font-semibold tracking-tight">
+          欢迎使用 ResearchThread（种子测试版）
+        </h2>
+        <p className="mb-4 text-small text-text-dim">
+          三件事值得先知道，之后随时能在「设置 → 数据」里查：
+        </p>
+        <ol className="mb-5 flex flex-col gap-3 text-small leading-relaxed">
+          <li className="flex gap-2.5">
+            <span className="shrink-0 font-mono text-text-subtle">1</span>
+            <span>
+              所有数据都是<strong>本机 Markdown 文件</strong>，存放在
+              <span className="mx-1 break-all font-mono text-micro text-text-dim">
+                {dir ?? "（浏览器预览为 mock 数据）"}
+              </span>
+              。应用不联网、不上传任何内容；可以直接用 Obsidian / 记事本打开这个目录。
+            </span>
+          </li>
+          <li className="flex gap-2.5">
+            <span className="shrink-0 font-mono text-text-subtle">2</span>
+            <span>
+              数据目录每天第一次启动会自动做 <strong>git 快照</strong>。如果左下角出现
+              「快照保护未生效」警告，说明这台电脑没装 git——数据照常保存，但没有版本历史兜底，装
+              Git for Windows 后在设置里点「重试」即可。
+            </span>
+          </li>
+          <li className="flex gap-2.5">
+            <span className="shrink-0 font-mono text-text-subtle">3</span>
+            <span>
+              用外部工具编辑文件时应用会<strong>阻止静默覆盖</strong>（保存时弹选择）；
+              反馈问题请用《种子测试手册》里的脱敏模板，<strong>不要打包整个数据目录</strong>。
+            </span>
+          </li>
+        </ol>
+        <div className="flex items-center justify-between gap-2">
+          <Btn
+            disabled={!dir}
+            onClick={() => dir && void openInFileManager(dir)}
+          >
+            打开数据目录
+          </Btn>
+          <Btn variant="primary" onClick={onClose}>
+            开始使用
+          </Btn>
+        </div>
+      </div>
+    </div>
   );
 }
