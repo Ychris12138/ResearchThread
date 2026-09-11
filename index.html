@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ResearchThread</title>
+    <meta name="theme-color" content="#ffffff" />
+    <meta
+      name="description"
+      content="科研人员的思路整理：空间、项目、任务与按日期追加的上下文日志。"
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      (function () {
+        try {
+          var r = localStorage.getItem("rt-settings-v1");
+          var s = r ? JSON.parse(r).state || {} : {};
+          var t = s.theme || "light";
+          if (t === "system")
+            t = matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+          var e = document.documentElement;
+          e.dataset.theme = t;
+          e.dataset.canvas = s.canvas || "white";
+          e.dataset.density = s.density || "compact";
+          e.dataset.radius = s.radius || "md";
+          e.dataset.sidebar = s.sidebarContrast || "soft";
+          e.dataset.font = s.font || "sans";
+          e.dataset.width = s.editorWidth || "medium";
+          if (s.fontSize) e.style.setProperty("--text-ui", s.fontSize + "px");
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

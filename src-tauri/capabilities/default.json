@@ -1,0 +1,65 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "ResearchThread 主窗口能力：数据目录文件 IO 与监听、终端 shell、全局快捷键",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-is-visible",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "fs:default",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-read-dir",
+    "fs:allow-mkdir",
+    "fs:allow-exists",
+    "fs:allow-remove",
+    "fs:allow-rename",
+    "fs:allow-stat",
+    "fs:allow-watch",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$HOME/ResearchThread" },
+        { "path": "$HOME/ResearchThread/**" }
+      ],
+      "requireLiteralLeadingDot": false
+    },
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "git", "cmd": "git", "args": true },
+        { "name": "claude", "cmd": "claude", "args": true },
+        { "name": "codex", "cmd": "codex", "args": true },
+        { "name": "cmd", "cmd": "cmd", "args": true },
+        { "name": "powershell", "cmd": "powershell", "args": true },
+        { "name": "explorer", "cmd": "explorer", "args": true },
+        { "name": "npm", "cmd": "npm", "args": true },
+        { "name": "node", "cmd": "node", "args": true }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        { "name": "git", "cmd": "git", "args": true },
+        { "name": "claude", "cmd": "claude", "args": true },
+        { "name": "codex", "cmd": "codex", "args": true },
+        { "name": "cmd", "cmd": "cmd", "args": true },
+        { "name": "powershell", "cmd": "powershell", "args": true },
+        { "name": "explorer", "cmd": "explorer", "args": true },
+        { "name": "npm", "cmd": "npm", "args": true },
+        { "name": "node", "cmd": "node", "args": true }
+      ]
+    },
+    "shell:allow-kill",
+    "shell:allow-stdin-write",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-unregister-all",
+    "global-shortcut:allow-is-registered"
+  ]
+}

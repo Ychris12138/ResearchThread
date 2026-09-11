@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# External UI delivery reference (kept on disk, not part of the app)
+ui_ref/
+
 # Build output
 dist/
 src-tauri/target/

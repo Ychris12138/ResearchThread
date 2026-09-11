@@ -1,0 +1,27 @@
+[package]
+name = "researchthread"
+version = "0.1.0"
+description = "ResearchThread — 科研思路整理：空间/项目/任务 + 上下文日志"
+authors = ["yr"]
+edition = "2021"
+
+[lib]
+name = "researchthread_lib"
+crate-type = ["lib"] # 桌面单机：rlib 足够；cdylib/staticlib 是移动端模板遗留（65535 导出上限会炸链接）
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-fs = { version = "2", features = ["watch"] }
+tauri-plugin-shell = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
