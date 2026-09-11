@@ -1,0 +1,22 @@
+# CI — PR/push 的最低验证门槛（docs/release.md §4-1/2）。
+# 只跑纯 Node 部分（vitest + tsc + vite build）；Tauri/NSIS 构建依赖本机 GNU 工具链，
+# 仍走手工 release gate（docs/release.md §0/§3）。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build

@@ -1,6 +1,6 @@
 # ResearchThread
 
-本地优先的科研/工作流程管理桌面应用（Tauri 2，macOS + Windows）。把手写「思路整理」工作流数字化：**空间 → 项目 → 任务**三级层级 + 双层上下文（项目整体上下文 / 任务上下文）+ 周文档。
+本地优先的科研/工作流程管理桌面应用（Tauri 2）。当前种子构建：**Windows x64**；macOS 为计划目标、尚未构建验证。把手写「思路整理」工作流数字化：**空间 → 项目 → 任务**三级层级 + 双层上下文（项目整体上下文 / 任务上下文）+ 周文档。
 
 第二步（已规划、未开始）：**人只说自然语言，agent 维护整个项目地图**——口述新任务/新项目/任务转折即可，agent 经 MCP 工具接口执行并定时产出日报/周报。
 
@@ -21,12 +21,13 @@
 
 ## 技术栈
 
-- React 19 + Vite + Tailwind v4（SPA；2026-09-10 采纳外部按 UI.md 交付的 UI，剥离其 SSR/登录/数据库）
-- Tauri 2（待接入，起步零自定义 Rust）
-- 所有数据访问统一走 `src/dataAccess.ts` 接口（[UI.md](UI.md) 第 2 节契约）；当前为 mock 实现，M1 换接 storage 层
-- 数据层 `src/storage/`（待建）：纯核心（core，无 Tauri API）+ IO 适配器（fsAdapter，plugin-fs）拆分——将来同一核心配 `node:fs` 即成 MCP server；`vitest` 单测守护写回契约（宽松读/规范写/保留未知字段）
-- 终端面板（M2）：`tauri-plugin-shell` + `@xterm/xterm`，经 AgentRunner 接口抽象（第二步对话面板与终端共用后端）
-- 数据：Markdown 文件树 + YAML frontmatter，数据目录即 agent 工作区（`AGENTS.md` / `.mcp.json` / `settings.yaml`），可用 Obsidian / git 直接操作
+- React 19 + Vite + Tailwind v4（SPA；按 [UI.md](UI.md) 契约集成外部交付的 UI，剥离其 SSR/登录/数据库）
+- Tauri 2 桌面壳（plugin-fs / plugin-shell / single-instance / global-shortcut；生产线启用 CSP，见 [docs/release.md](docs/release.md) §5）
+- 数据访问统一走 `src/dataAccess.ts` 接口（[UI.md](UI.md) 第 2 节契约）：浏览器 dev → MockDataAccess；Tauri 桌面 → StorageDataAccess（Markdown 文件树落盘）
+- 数据层 `src/storage/`：纯核心 `core.ts`（无 Tauri API）+ IO 适配器 `fsAdapter.ts`（plugin-fs）+ 事务式写入 `atomicWrite.ts` + 每日快照健康 `snapshot.ts`；同一核心配 `node:fs` 即成 2b 阶段 MCP server（`tests/storageNode.test.ts` 的适配器即雏形）
+- Vitest 守护写回契约与数据安全（宽松读/规范写/保留未知字段/外部冲突防护/软删除/中断恢复）；CI 见 `.github/workflows/ci.yml`
+- 终端面板：`tauri-plugin-shell` + `@xterm/xterm`，经 AgentRunner 接口抽象（第二步对话面板与终端共用后端）
+- 数据：Markdown 文件树 + YAML frontmatter，数据目录即 agent 工作区（`AGENTS.md` / `.mcp.json` / `settings.yaml`），可用 Obsidian / git 直接操作；删除进 `.trash/` 可恢复
 
 UI 布局：左侧栏（空间/项目树）｜中间展示区｜底部可开关面板（第一阶段内置终端，第二步 agent 对话）｜右侧可开关侧边栏（详情/上下文编辑）。
 

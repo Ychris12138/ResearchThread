@@ -175,15 +175,32 @@ describe("StorageDataAccess 生命周期", () => {
     expect(items.some((i) => i.id === item.id)).toBe(false);
   });
 
-  it("删除任务后列表消失；项目描述可更新", async () => {
+  it("删除任务 → 软删除进 .trash（可恢复）；项目描述可更新", async () => {
     const [space] = await store.listSpaces();
     const project = space.projects[0];
     const task = await store.createTask(space.id, project.id, "待删除的任务");
+    const taskRel = `spaces/${space.id}/projects/${project.id}/tasks/${task.id}`;
+    const taskPath = join(dataDir, "spaces", space.id, "projects", project.id, "tasks", task.id);
+    await fsp.appendFile(taskPath, "\n### 2026-09-11 · 我\n重要：别丢这段上下文。\n", "utf8");
+
     await store.deleteTask(space.id, project.id, task.id);
     const after = await store.listSpaces();
     expect(
       after.flatMap((s) => s.projects.flatMap((p) => p.tasks.map((t) => t.id))),
     ).not.toContain(task.id);
+
+    // 软删除：文件进了 .trash/ 而非物理消失（当天未进 git 快照的新文件也不丢）
+    const trashDir = join(dataDir, ".trash");
+    const trashed = (await fsp.readdir(trashDir)).filter((f) => f.endsWith(`_${task.id}`));
+    expect(trashed).toHaveLength(1);
+    const trashedContent = await fsp.readFile(join(trashDir, trashed[0]), "utf8");
+    expect(trashedContent).toContain("别丢这段上下文");
+
+    // 恢复演练：从 .trash 移回原位 → 任务可读、内容完整
+    await fsp.rename(join(trashDir, trashed[0]), taskPath);
+    const restored = await store.getTask(space.id, project.id, task.id);
+    expect(restored.entries.some((e) => e.text.includes("别丢这段上下文"))).toBe(true);
+    void taskRel;
 
     await store.updateProjectDescription(space.id, project.id, "# 目标\nPRB 投稿。");
     const afterDesc = await store.listSpaces();

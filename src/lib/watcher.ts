@@ -39,7 +39,8 @@ export async function startWatcher(handlers: WatchHandlers): Promise<() => void>
           !rel.startsWith(".git/") && // git 内部簿记对 agent 无意义
           !rel.endsWith(".rt-tmp") && // 原子写残片
           !rel.endsWith(".rt-bak") && // 原子写备份
-          !rel.startsWith(".activity/"),
+          !rel.startsWith(".activity/") &&
+          !rel.startsWith(".trash/"), // 软删除暂存（恢复由人操作 spaces/ 时自然可见）
       );
     if (external.length > 0) {
       void store.logExternalModify(external);

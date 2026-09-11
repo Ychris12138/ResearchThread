@@ -298,6 +298,7 @@ export const paths = {
     `spaces/${spaceId}/projects/${projectId}/tasks/${taskId}`,
   inboxDir: () => "inbox",
   inboxItem: (id: string) => `inbox/${id}`,
+  trashDir: () => ".trash",
   weeklyDir: () => "weekly",
   weeklyFile: (id: string) => `weekly/${id}`,
   dailyDir: () => "daily",

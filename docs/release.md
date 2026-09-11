@@ -61,14 +61,20 @@ npm run make-release      # ④ 归拢 release/（含门槛自检）
 
 ## 5. 数据安全红线（任何版本不得回退，回退 = 事故）
 
+0. **renderer 安全边界**：生产线 CSP 必须开启（`tauri.conf.json` `app.security.csp`，当前 `default-src 'self'` + 按需放开），**禁止改回 `null`**；`shell` capability（cmd/powershell/node/npm/claude/codex/git，`args: true`）是**高权限边界**——任何新的 HTML 渲染入口（markdown 预览、agent 输出、CLI 输出渲染）必须先 HTML 转义再生成白名单标签（参照 `src/lib/markdown.ts` 的 escape-first 原则），改动必须过安全审查。理由：任何 renderer 注入 + shell 白名单 = 本机代码执行。
 1. **写入只走事务**：所有文件写入经 `src/storage/atomicWrite.ts`（tmp → bak 让位 → 就位），保证任何失败/中断后原文件或备份必有一个可恢复；不许绕过它直接调 fs 写。
-2. **外部冲突守卫**：`updateTaskMeta` / `updateEntry` / `updateProjectDescription` / `saveWeekly` 保存前的外部修改检查（`ExternalConflictError` → 用户选择）不许移除或改成静默合并。
+2. **外部冲突守卫**：`updateTaskMeta` / `appendEntry` / `updateEntry` / `updateProjectDescription` / `saveWeekly` 保存前的外部修改检查（`ExternalConflictError` → 用户选择）不许移除或改成静默合并。
 3. **单实例**：`tauri-plugin-single-instance` 不许移除。
 4. **快照失败必须可见**：git 缺失/提交失败 → 界面持久警告，不许回到静默降级。
 5. **脏草稿退出保护**：`onCloseRequested` / `beforeunload` 拦截不许移除。
-6. **数据格式向后兼容**：文件树结构、frontmatter 契约、`status` 五态枚举是存量用户资产——宽松读 / 保留未知字段的写回契约（PLAN.md 第三节）不许破坏；确需破坏性变更：先用户确认、写迁移与回滚说明、升 minor。
-7. **卸载不删数据目录**：NSIS 卸载只删程序本体与应用界面设置；不得增加「删除数据」的卸载选项。
-8. **UI 不触文件**：所有数据访问仍必须经 `src/dataAccess.ts` 边界。
+6. **删除 = 软删除**：`deleteTask` / `deleteInboxItem` 只移入 `.trash/`（时间戳前缀，不覆盖、不清理），不做物理删除——事务写保护不了 delete，这是当天新文件尚未进 git 快照时唯一的丢失防线；恢复 = 从 `.trash/` 移回或 git 找回。
+7. **数据格式向后兼容**：文件树结构、frontmatter 契约、`status` 五态枚举是存量用户资产——宽松读 / 保留未知字段的写回契约（PLAN.md 第三节）不许破坏；确需破坏性变更：先用户确认、写迁移与回滚说明、升 minor。
+8. **卸载不删数据目录**：NSIS 卸载只删程序本体与应用界面设置；不得增加「删除数据」的卸载选项。
+9. **UI 不触文件**：所有数据访问仍必须经 `src/dataAccess.ts` 边界。
+
+## 5b. CI 门槛
+
+`.github/workflows/ci.yml` 在每个 PR / push 上强制 `npm ci → npm test → npm run build`——**merge gate 是 CI 绿，不是"本地跑过"的口头证据**。Tauri/NSIS 构建依赖本机 GNU 工具链，仍走 §4 手工 release gate；将来环境标准化后可加入 CI。
 
 ## 6. 隐私红线（零遥测，任何版本不得突破）
 

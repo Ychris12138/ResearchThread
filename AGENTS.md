@@ -26,7 +26,10 @@ ResearchThread 是一个**本地优先**的桌面工具（Tauri 2，macOS + Wind
 - 阶段：**M3 完成 + 种子发布加固**（M1/M2/M3 全部落地，实机验证）——发布前审阅确认的九项门槛已全部代码落地：
   - **事务式写入**（`storage/atomicWrite.ts`）：写 `.rt-tmp` → 原文件让位 `.rt-bak` → 新内容就位 → 清备份；任何一步失败或进程中断后，**原文件或备份必有一个可恢复**；启动时 `recoverInterruptedWrites()` 扫描恢复并记账。测试注入 rename 失败/持续故障/崩溃残留全覆盖
   - **单实例**（`tauri-plugin-single-instance`）：第二实例启动即聚焦已有主窗口后退出，杜绝双 watcher + 同名 tmp/bak 互踩
-  - **外部编辑并发策略**：storage 保存前比对磁盘内容与应用最后已知内容（`seen` 缓存，读/写后更新），不一致抛 `ExternalConflictError`，UI 弹「覆盖保存（acknowledge 后重试）/ 重新加载 / 取消」。`updateTaskMeta` / `updateEntry` / `updateProjectDescription` / `saveWeekly` 四路受保护；appendEntry 纯追加不设卡
+  - **外部编辑并发策略**：storage 保存前比对磁盘内容与应用最后已知内容（`seen` 缓存，读/写后更新），不一致抛 `ExternalConflictError`，UI 弹「覆盖保存（acknowledge 后重试）/ 重新加载 / 取消」。`updateTaskMeta` / `appendEntry` / `updateEntry` / `updateProjectDescription` / `saveWeekly` **五路全部受保护**（appendEntry 同样检查冲突后整文件重写，比纯追加更安全）
+  - **软删除**：`deleteTask` / `deleteInboxItem` 移入数据目录 `.trash/`（时间戳前缀），不物理删除；恢复 = 移回原位或 git 找回（事务写保护不了 delete，这是当天未快照文件的唯一防线）
+  - **renderer 安全边界**：生产线 CSP 已开启（`app.security.csp`，`default-src 'self'` 起步）；`shell` capability（cmd/powershell/node/npm/claude/codex/git，args:true）是高权限边界，任何新 HTML 渲染入口必须 escape-first（`src/lib/markdown.ts` 原则）——详见 docs/release.md §5-0
+  - **CI 门槛**：`.github/workflows/ci.yml`（npm ci → test → build）是 PR 的 merge gate；Tauri/NSIS 仍手工构建（GNU 工具链，见下）
   - **每日快照健康**（`storage/snapshot.ts` `ensureSnapshotHealth()`）：git 可用性检测 → 仓库级身份兜底（`--local`，不动全局配置）→ 补有效提交（修旧版 init 静默失败留下的空仓）→ 每日首启自动提交；任何失败 `ok:false`，主界面左下持久警告横幅 + 设置→数据「重试」
   - **草稿与覆盖保护**：`editorState` 增 weekly 脏标记，脏编辑器存在时 `onCloseRequested` / `beforeunload` 拦截退出并确认；周文档重新生成与外部冲突覆盖均需二次点击确认（3 秒 armed）
   - **周报正确性**：任务定位主键改完整相对路径（修跨项目同名任务归错），活跃工作线 ☆ 置顶稳定排序
@@ -67,6 +70,7 @@ ResearchThread 是一个**本地优先**的桌面工具（Tauri 2，macOS + Wind
 ├── .gitignore         # 至少忽略 .mcp.json
 ├── .activity/log.jsonl
 ├── inbox/             # 快速捕获收件箱（未来的自然语言命令队列）
+├── .trash/            # 软删除暂存（删除不物理清除；用户手动恢复或清理）
 ├── spaces/
 │   ├── research/      # 空间（≈ 手写页的分类）
 │   │   └── projects/

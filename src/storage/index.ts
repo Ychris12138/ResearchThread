@@ -446,8 +446,29 @@ export class StorageDataAccess implements AppDataAccess {
 
   async deleteTask(spaceId: string, projectId: string, taskId: string): Promise<void> {
     const rel = core.paths.taskFile(spaceId, projectId, taskId);
-    await this.remove(rel);
-    await this.logActivity("app", "task", rel, "delete_task");
+    const trashedTo = await this.moveToTrash(rel);
+    await this.logActivity("app", "task", rel, "delete_task", { trashedTo });
+  }
+
+  /**
+   * 软删除：移入数据目录 .trash/（时间戳前缀防覆盖），绝不物理删除。
+   * 事务写保护不了 delete——这是当天新文件尚未进 git 快照时唯一的丢失防线；
+   * 恢复 = 把文件从 .trash/ 移回原位（或从 git 历史找回）。
+   */
+  private async moveToTrash(rel: string): Promise<string> {
+    const src = this.abs(rel);
+    if (!(await this.adapter.exists(src))) throw new Error(`文件不存在：${rel}`);
+    await this.adapter.mkdir(this.abs(core.paths.trashDir()));
+    const trashEntries = await this.adapter.readDir(this.abs(core.paths.trashDir()));
+    const now = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    const stamp = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}T${p(now.getHours())}-${p(now.getMinutes())}-${p(now.getSeconds())}`;
+    const base = `${stamp}_${rel.split("/").pop()}`;
+    const trashedRel = `${core.paths.trashDir()}/${core.uniqueId(base, trashEntries.map((e) => e.name))}`;
+    await this.adapter.rename(src, this.abs(trashedRel));
+    markSelfWrite(src);
+    markSelfWrite(this.abs(trashedRel));
+    return trashedRel;
   }
 
   // —— 收件箱（M2③：快速捕获；文件 = inbox/YYYY-MM-DD-HHMMSS.md，正文即内容） ——
@@ -493,8 +514,8 @@ export class StorageDataAccess implements AppDataAccess {
   }
 
   async deleteInboxItem(id: string): Promise<void> {
-    await this.remove(core.paths.inboxItem(id));
-    await this.logActivity("app", "inbox", core.paths.inboxItem(id), "inbox_delete");
+    const trashedTo = await this.moveToTrash(core.paths.inboxItem(id));
+    await this.logActivity("app", "inbox", core.paths.inboxItem(id), "inbox_delete", { trashedTo });
   }
 }
 
