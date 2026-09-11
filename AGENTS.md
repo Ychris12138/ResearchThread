@@ -37,7 +37,7 @@ ResearchThread 是一个**本地优先**的桌面工具（Tauri 2，macOS + Wind
 - 第二步技术报告见 [PART2.md](PART2.md)：CLI 后端选型（claude 首选/codex 坑清单）、MCP 工具面与 will_write 归属协议、2c 解析器选型、风险登记册与排期——**实施 2a–2d 前必读**
 - **Windows 构建环境（本机）**：Rust stable-msvc 装了但**缺 Windows SDK**（提权安装 SDK 未获批准）；当前用 `stable-x86_64-pc-windows-gnu` + `rust-lld` + Strawberry Perl 的 dlltool 编译通过。**启动命令**：
   ```bash
-  export PATH="/d/perl/c/x86_64-w64-mingw32/bin:/d/perl/c/bin:/c/Users/85463/.cargo/bin:$PATH"
+  export PATH="/d/perl/c/x86_64-w64-mingw32/bin:/d/perl/c/bin:$HOME/.cargo/bin:$PATH"
   export RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu
   npm run tauri dev
   ```

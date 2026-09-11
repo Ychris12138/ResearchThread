@@ -6,7 +6,7 @@
 ## 0. 一句话流程
 
 ```bash
-export PATH="/d/perl/c/x86_64-w64-mingw32/bin:/d/perl/c/bin:/c/Users/85463/.cargo/bin:$PATH"
+export PATH="/d/perl/c/x86_64-w64-mingw32/bin:/d/perl/c/bin:$HOME/.cargo/bin:$PATH"
 export RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu
 npx vitest run            # ① 测试全绿
 npm run build             # ② tsc + vite 构建通过
