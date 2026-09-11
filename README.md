@@ -17,6 +17,7 @@
 | [PART2.md](PART2.md) | 第二步（agent 时代）技术报告：2a–2d 调研、选型、风险与排期 |
 | [UI.md](UI.md) | M1 界面实现规格（自包含，供外部实现；含数据访问接口契约与验收清单） |
 | [docs/seed-manual.md](docs/seed-manual.md) | 种子测试手册：安装/SmartScreen、数据与快照、并发规则、隐私说明与脱敏反馈模板 |
+| [docs/release.md](docs/release.md) | 发布流程与边界：release/ 产物规范、版本规则、每次发版的门槛清单与数据安全/隐私红线 |
 
 ## 技术栈
 

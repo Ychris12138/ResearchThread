@@ -145,6 +145,7 @@ mcp-server/            # （2b，暂不创建）Node：storage/core + node:fs + 
 
 ## 协作约定
 
+- **发版/打包的一切要求与红线见 [docs/release.md](docs/release.md)**：`release/`（仓库根，gitignore）是唯一发布产物位置，`npm run tauri build` 后必须 `npm run make-release` 生成；版本唯一事实源 `tauri.conf.json`（三处一致由脚本强制）；数据安全与隐私红线（事务写/冲突守卫/单实例/快照可见/零遥测/不收集数据目录）任何版本不得回退；每次发版过 §4 门槛清单并在 §8 发布记录表登记
 - 文档与用户交流用**中文**；代码标识符、枚举值、commit message 用英文
 - 提交前跑 `npm run tauri dev` 确认应用可启动、`npx vitest run` 确认 storage 测试全绿（M1 起适用）
 - 完成里程碑后更新本文件「当前状态」并同步 README.md 的状态行
