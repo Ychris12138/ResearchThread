@@ -93,7 +93,7 @@ describe("StorageDataAccess 生命周期", () => {
     const space = await store.createSpace("科研");
     expect(space.id).toBe("科研");
     const project = await store.createProject(space.id, "DFT 论文投稿");
-    const task = await store.createTask(project.id ? space.id : space.id, project.id, "回复审稿人", "补充静电结合能数据");
+    const task = await store.createTask(space.id, project.id, "回复审稿人", "补充静电结合能数据");
 
     const raw = await fsp.readFile(join(dataDir, "spaces", "科研", "projects", project.id, "tasks", task.id), "utf8");
     expect(raw).toContain("title: 回复审稿人");

@@ -30,8 +30,11 @@ interface TaskRef {
 }
 
 function diffDays(later: string, earlier: string): number {
-  const a = Date.UTC(...(later.split("-").map(Number) as [number, number, number]));
-  const b = Date.UTC(...(earlier.split("-").map(Number) as [number, number, number]));
+  // Date.UTC 的 month 是 0–11；Markdown 日期是 1–12，必须 -1（跨月边界差 1–3 天）
+  const [ly, lm, ld] = later.split("-").map(Number);
+  const [ey, em, ed] = earlier.split("-").map(Number);
+  const a = Date.UTC(ly, (lm ?? 1) - 1, ld ?? 1);
+  const b = Date.UTC(ey, (em ?? 1) - 1, ed ?? 1);
   return Math.round((a - b) / 86400000);
 }
 
@@ -81,7 +84,8 @@ export function buildWeeklySkeleton(input: WeeklySkeletonInput): string {
     const mmdd = ev.date.slice(5).replace("-", "/");
     switch (ev.event) {
       case "create_task":
-        if (name) lines.push(`- ${mmdd} 新建任务「${name}」· ${ref ? loc(ref) : ""}`.trimEnd());
+        // ref 解析不到（跨周新建后已删等）时不留尾部「·」
+        if (name) lines.push(ref ? `- ${mmdd} 新建任务「${name}」· ${loc(ref)}` : `- ${mmdd} 新建任务「${name}」`);
         break;
       case "set_status": {
         const d = (ev.detail ?? {}) as { from?: string; to?: string };

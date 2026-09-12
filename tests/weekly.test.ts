@@ -122,8 +122,7 @@ describe("buildWeeklySkeleton（确定性骨架）", () => {
     EV({ date: "2026-09-10", event: "append_entry" }),
     EV({
       date: "2026-09-10",
-      event: "external_modify_placeholder", // external actor 走汇总
-      actor: "external",
+      actor: "external", // external actor 走汇总
       event: "modify",
       entity: "file",
       id: "spaces\\research\\projects\\paper-dft\\tasks\\2026-09-01-reply.md",
@@ -170,6 +169,48 @@ describe("buildWeeklySkeleton（确定性骨架）", () => {
   it("空周：动态提示无记录", () => {
     const empty = buildWeeklySkeleton({ ...BASE, events: [] });
     expect(empty).toContain("本周没有记录到操作。");
+  });
+
+  it("create_task 解析不到项目时不留尾部「·」", () => {
+    expect(md).toContain("新建任务「新任务X」");
+    expect(md).not.toContain("「新任务X」·");
+  });
+});
+
+describe("滞留天数边界（diffDays 月份索引回归）", () => {
+  const mkTask = (updated: string) => ({
+    id: `2026-01-01-t.md`,
+    title: `更新于${updated}`,
+    status: "doing" as const,
+    star: false,
+    next: "",
+    created: "2026-01-01",
+    updated,
+    entries: [],
+  });
+  const spaces: Space[] = [
+    {
+      id: "s",
+      name: "空间",
+      projects: [
+        {
+          id: "p",
+          name: "项目",
+          description: "",
+          // 周日 end=2026-09-13：08-30 恰好 14 天（应判滞留），08-31 恰好 13 天（不应判）
+          tasks: [mkTask("2026-08-30"), mkTask("2026-08-31")],
+        },
+      ],
+    },
+  ];
+  const md = buildWeeklySkeleton({ ...BASE, spaces, events: [] });
+  const attention = md.split("## 需要关注")[1].split("## 搁置")[0];
+
+  it("恰好 14 天未更新 → 判为滞留（且天数正确：跨月不减错）", () => {
+    expect(attention).toContain("已 14 天未更新");
+  });
+  it("恰好 13 天未更新 → 不判滞留", () => {
+    expect(attention).not.toContain("已 13 天未更新");
   });
 });
 

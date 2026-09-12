@@ -61,7 +61,7 @@ npm run make-release      # ④ 归拢 release/（含门槛自检）
 
 ## 5. 数据安全红线（任何版本不得回退，回退 = 事故）
 
-0. **renderer 安全边界**：生产线 CSP 必须开启（`tauri.conf.json` `app.security.csp`，当前 `default-src 'self'` + 按需放开），**禁止改回 `null`**；`shell` capability（cmd/powershell/node/npm/claude/codex/git，`args: true`）是**高权限边界**——任何新的 HTML 渲染入口（markdown 预览、agent 输出、CLI 输出渲染）必须先 HTML 转义再生成白名单标签（参照 `src/lib/markdown.ts` 的 escape-first 原则），改动必须过安全审查。理由：任何 renderer 注入 + shell 白名单 = 本机代码执行。
+0. **renderer 安全边界**：生产线 CSP 必须开启（`tauri.conf.json` `app.security.csp`，当前 `default-src 'self'` + 按需放开），**禁止改回 `null`**；`shell` capability（cmd/powershell/node/npm/claude/codex/git，`args: true`）是**高权限边界**——任何新的 HTML 渲染入口（markdown 预览、agent 输出、CLI 输出渲染）必须先 HTML 转义再生成白名单标签（参照 `src/lib/markdown.ts` 的 escape-first 原则），改动必须过安全审查。理由：任何 renderer 注入 + shell 白名单 = 本机代码执行。**2a/2b 接入 agent 时必须重新收紧这份 allowlist**（ Roadmap Issue #2）。
 1. **写入只走事务**：所有文件写入经 `src/storage/atomicWrite.ts`（tmp → bak 让位 → 就位），保证任何失败/中断后原文件或备份必有一个可恢复；不许绕过它直接调 fs 写。
 2. **外部冲突守卫**：`updateTaskMeta` / `appendEntry` / `updateEntry` / `updateProjectDescription` / `saveWeekly` 保存前的外部修改检查（`ExternalConflictError` → 用户选择）不许移除或改成静默合并。
 3. **单实例**：`tauri-plugin-single-instance` 不许移除。
