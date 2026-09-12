@@ -189,7 +189,7 @@ ${verifyLines}
 **macOS：**
 1. 核对校验值：终端执行 \`shasum -a 256 ./<DMG>\`，与 \`SHA256SUMS.txt\` 或发布页公布的值一致。
 2. 双击 DMG，把 ResearchThread 拖入「应用程序」。
-3. 首次启动（未签名构建）：先试右键 ResearchThread → 打开；macOS 15+ 已移除右键打开，改在终端执行 \`xattr -cr /Applications/ResearchThread.app\` 后正常启动。
+3. 首次启动（未签名构建）：macOS 15+ 会弹「移到废纸篓 / 完成」——点「完成」关掉，再打开 **系统设置 → 隐私与安全性**，页面底部点「ResearchThread 已被阻止」旁的「**仍要打开**」确认；macOS 12–14：右键 ResearchThread → 打开 → 打开。不要关闭 Gatekeeper。
 4. 应用为 universal 二进制（Apple Silicon + Intel 切片），实际硬件验证在 Apple Silicon 上完成，Intel 未单独实测——发布页按此口径说明。
 
 ## 快速核对

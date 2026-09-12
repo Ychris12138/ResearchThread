@@ -1,7 +1,7 @@
 # 发布流程与边界（Release Playbook）
 
 > **每次打包发版前必读。** 本文件是发版的唯一规范；与代码冲突时以本文件为准修复代码。
-> `release/`（仓库根）是**唯一**发布产物位置，由 `npm run make-release` 生成——本目录不手工编辑、不手工投放文件。
+> `release/`（仓库根）是**唯一**发布产物位置，由 `npm run make-release` 生成——**生成型文件（README.md / SHA256SUMS.txt / 种子手册副本）绝不手工编辑**；对侧平台的安装包可以作为汇总输入拷入 `release/`，但拷入后**必须重跑** `npm run make-release` 重新生成校验和（见 §1 汇总语义）。
 
 ## 0. 一句话流程
 
@@ -34,10 +34,10 @@ npm run make-release      # ④ 同一脚本，darwin 下收 DMG
   | `SHA256SUMS.txt` | 安装包与手册的 SHA-256 | 脚本按 release/ 内实际安装包**全量重算**（跨平台统一，见下方汇总语义） |
   | `README.md` | 下载/校验/安装说明 + 构建提交记录 | 脚本模板 |
   | `种子测试手册.md` | 种子用户手册副本 | `docs/seed-manual.md`（只改源头，不改副本） |
-- **汇总语义（消解双平台覆盖矛盾）**：脚本只清理「旧版本」安装包；**当前版本**的安装包跨平台累积——Windows 跑完把 dmg 拷进来重跑、或在 macOS 侧反向操作，`SHA256SUMS.txt` 都会自动覆盖双平台，无需手工拼校验和文件。
+- **汇总语义（消解双平台覆盖矛盾）**：脚本只清理「旧版本」安装包；**当前版本**的安装包跨平台累积——Windows 跑完把 dmg 拷进来重跑、或在 macOS 侧反向操作，`SHA256SUMS.txt` 都会自动覆盖双平台，无需手工拼校验和文件。**规则**：安装包（exe/dmg）可以作为汇总输入拷入 `release/`；除此之外的一切（README.md、SHA256SUMS.txt、手册副本）只能由脚本生成，手改 = 无效发布；任何拷入之后都必须重跑 `npm run make-release`，让校验和覆盖最终产物集合。
 - macOS 侧**只认 universal DMG**（`target/universal-apple-darwin/...`），严格匹配 `productName + version` 文件名；native/ARM-only DMG 不是发布物，脚本直接失败、不 fallback。
 - 历史（旧版本）不堆在 `release/`：发布后的安装包转存到发布渠道/网盘归档，靠 git tag 重新构建复现。
-- 手工改 `release/` 里任何文件 = 无效发布，下次生成会被覆盖。
+- 生成型 metadata（README / SHA256SUMS / 手册副本）手改 = 无效发布，下次生成会被覆盖；安装包拷入见「汇总语义」。
 - Tauri 配置按平台拆分（构建时自动合并）：`tauri.conf.json`（公共：窗口/CSP/图标）+ `tauri.windows.conf.json`（NSIS/WebView2Loader/须知页）+ `tauri.macos.conf.json`（app+dmg/最低 macOS 12）。**不要把平台特有配置写回公共文件。**
 
 ## 2. 版本规则
