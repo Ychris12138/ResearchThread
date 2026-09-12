@@ -143,7 +143,9 @@ const verifyCmd = isMac
 const installSteps = isMac
   ? `1. 核对校验值：终端执行 \`${verifyCmd}\`，与 \`SHA256SUMS.txt\` 或发布页公布的值一致。
 2. 双击 DMG，把 ResearchThread 拖入「应用程序」。
-3. 首次启动（未签名构建）：在「应用程序」里**右键 → 打开 → 打开**，之后正常启动。
+3. 首次启动（未签名构建）会被拦截，按系统版本放行（只需一次）：
+   - macOS 15 及更高：弹「移到废纸篓 / 完成」时点「**完成**」，再打开 **系统设置 → 隐私与安全性**，底部点「**仍要打开**」并确认。
+   - macOS 12–14：在「应用程序」里**右键 → 打开 → 打开**。
    应用未来做 Developer ID 签名 + 公证后此步可免（docs/release.md §7）。`
   : `1. 核对校验值：PowerShell 执行 \`${verifyCmd}\`，与 \`SHA256SUMS.txt\` 或发布页公布的值一致。
 2. 双击安装包。未签名会过 SmartScreen：**「更多信息」→「仍要运行」**，不需要关闭 SmartScreen。

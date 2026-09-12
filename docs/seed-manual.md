@@ -83,7 +83,9 @@ Windows 版本：如 Win10 22H2 / Win11 23H2
 
 ## 8. macOS 附录（Mac 种子用户）
 
-- **安装**：双击 DMG，把 ResearchThread 拖进「应用程序」。安装包未签名，首次启动若提示「无法验证开发者」：在「应用程序」里**右键 ResearchThread → 打开 → 再点「打开」**（只需一次），不要去系统设置里关 Gatekeeper。
+- **安装**：双击 DMG，把 ResearchThread 拖进「应用程序」。安装包未签名，首次启动会被 macOS 拦截，放行方式（只需一次，**不要**去系统设置里关 Gatekeeper）：
+  - **macOS 15（Sequoia）及更高**：双击/右键打开都会弹「移到废纸篓 / 完成」——点「**完成**」关掉它，然后打开 **系统设置 → 隐私与安全性**，滚到页面底部，点「ResearchThread 已被阻止」旁的「**仍要打开**」，Touch ID/密码确认即可。
+  - **macOS 12–14**：在「应用程序」里**右键 ResearchThread → 打开 → 再点「打开」**即可。
 - **数据**：与 Windows 完全一致，存放在 `/Users/<你>/ResearchThread/`（Finder 里按 `⌘⇧G` 输入 `~/ResearchThread` 可直达）。删除应用不会删除这个目录。
 - **快照**：需要本机安装 git（`xcode-select --install` 装的 Command Line Tools 就自带）。Finder 双击启动的应用拿不到终端里的 PATH——应用已内置修复；若左下角仍出现「快照保护未生效」，装好 git 后在「设置 → 数据 → 重试」。
 - **并发规则、隐私说明、反馈模板**：与上文 Windows 部分完全相同。

@@ -58,7 +58,7 @@ npm run make-release      # ④ 同一脚本，darwin 下收 DMG
 - universal 二进制：`rustup target add aarch64-apple-darwin x86_64-apple-darwin` 后 `npm run tauri build -- --target universal-apple-darwin --bundles app,dmg`；产物在 `src-tauri/target/universal-apple-darwin/release/bundle/dmg/`。
 - **PATH 修复是硬依赖**：Finder/Dock 启动的 GUI 不继承 shell PATH，`src-tauri/src/lib.rs` 里的 `fix_path_env::fix()` 不可移除；验收标准是 **Finder 双击启动**后 git/claude/codex 在内置终端可用（Terminal 启动可用不算过）。
 - 文件管理器走 `plugin-opener`（`openPath`），不进 shell 白名单；shell capability 按平台拆分（`capabilities/shell-macos.json` 只含 git/claude/codex/node/npm）。
-- 签名分两阶段：内测期不签名（用户走「右键 → 打开」过 Gatekeeper，手册已写）；**面向陌生用户分发前必须 Developer ID 签名 + 公证**（Tauri 支持 signing identity 自动公证），届时更新手册与 `tauri.macos.conf.json` 的签名配置。
+- 签名分两阶段：内测期不签名（未签名包被 Gatekeeper 拦截后，macOS 15+ 走「系统设置 → 隐私与安全性 → 仍要打开」放行；macOS 12–14 才有「右键 → 打开」——**「右键打开」通道在 macOS 15 Sequoia 起已被移除**，2026-09-12 M5/macOS 26.6 实测确认，手册已按系统版本分开写）；**面向陌生用户分发前必须 Developer ID 签名 + 公证**（Tauri 支持 signing identity 自动公证），届时更新手册与 `tauri.macos.conf.json` 的签名配置。
 - `bundle.icon` 已含 `icons/icon.icns`；`minimumSystemVersion: 12.0`。
 
 通用：改过 `src-tauri/capabilities/*.json` 后需 `touch src-tauri/build.rs` 强制重嵌（dev watch 不监听 capabilities）；发布前 `package-lock.json` 与 `src-tauri/Cargo.lock` 必须已提交。
@@ -94,7 +94,7 @@ npm run make-release      # ④ 同一脚本，darwin 下收 DMG
    - [ ] 删除任务 → `.trash/` 可找回；
    - [ ] 无 git 的 Mac：快照警告出现；装 git 后重试恢复；
    - [ ] 旧 DMG → 新 DMG 覆盖升级数据完好；删 .app 卸载不删数据；
-   - [ ] 未签名 DMG 下载后：右键 → 打开可过 Gatekeeper。
+   - [ ] 未签名 DMG 下载后（真实浏览器下载带 quarantine）：macOS 15+ 弹「移到废纸篓/完成」→ 系统设置 → 隐私与安全性 →「仍要打开」可放行（macOS 12–14：右键 → 打开）。
 7. git commit 并打 tag `vX.Y.Z`；tag message 记录版本与 SHA-256。
 8. 发布渠道：安装包 + 公布的 SHA-256 + `release/README.md` 内容 + 种子手册。
 
@@ -125,7 +125,7 @@ npm run make-release      # ④ 同一脚本，darwin 下收 DMG
 
 - 发布目标：**Windows x64 NSIS + macOS 12+ universal DMG（未签名内测期）**。Mac App Store、自动更新是后续里程碑，不 sneak 进普通发版。
 - 安装器形态固定：Windows 中文 NSIS + 安装须知页；macOS 走标准 DMG 拖入 Applications。不加自定义安装页面、不捆绑其他软件。
-- 面向陌生用户的 macOS 公开分发前，**必须** Developer ID 签名 + 公证（熟人内测可用「右键 → 打开」过渡，手册已写）。
+- 面向陌生用户的 macOS 公开分发前，**必须** Developer ID 签名 + 公证（熟人内测可用「系统设置 → 隐私与安全性 → 仍要打开」过渡，macOS 15+ 无「右键 → 打开」通道，手册已写）。
 - 反目标照旧（AGENTS.md）：不做项目管理软件、不做笔记软件、不做 chat-first。
 
 ## 8. 发布记录
