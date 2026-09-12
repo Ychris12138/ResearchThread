@@ -26,8 +26,7 @@
       "allow": [
         { "path": "$HOME/ResearchThread" },
         { "path": "$HOME/ResearchThread/**" }
-      ],
-      "requireLiteralLeadingDot": false
+      ]
     },
     "opener:default",
     "opener:allow-open-path",
