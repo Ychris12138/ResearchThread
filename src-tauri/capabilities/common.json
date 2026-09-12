@@ -1,0 +1,39 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "common",
+  "description": "跨平台能力：数据目录文件 IO 与监听、目录打开（opener）、全局快捷键",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-is-visible",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "fs:default",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-read-dir",
+    "fs:allow-mkdir",
+    "fs:allow-exists",
+    "fs:allow-remove",
+    "fs:allow-rename",
+    "fs:allow-stat",
+    "fs:allow-watch",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$HOME/ResearchThread" },
+        { "path": "$HOME/ResearchThread/**" }
+      ],
+      "requireLiteralLeadingDot": false
+    },
+    "opener:default",
+    "opener:allow-open-path",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-unregister-all",
+    "global-shortcut:allow-is-registered"
+  ]
+}

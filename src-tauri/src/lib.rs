@@ -14,7 +14,16 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .setup(|_app| {
+            // macOS：Finder/Dock 启动不继承 .zshrc 的 PATH，git/claude/codex 会找不到；
+            // 官方 fix-path-env 恢复登录 shell 的 PATH（其他平台为安全 no-op）
+            if let Err(e) = fix_path_env::fix() {
+                eprintln!("fix_path_env failed: {e}");
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

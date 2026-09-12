@@ -44,12 +44,21 @@ async function boot(): Promise<void> {
       initialTask = null;
     }
   } catch (e) {
-    root.innerHTML = `
-      <div style="font-family:system-ui,sans-serif;padding:48px;max-width:560px;margin:0 auto;color:#1c1917">
-        <h1 style="font-size:18px;margin-bottom:12px">ResearchThread 数据层初始化失败</h1>
-        <p style="color:#666;line-height:1.6">${String(e)}</p>
-        <p style="color:#999;margin-top:16px">请检查数据目录（~/ResearchThread）权限后重启应用。</p>
-      </div>`;
+    // renderer 安全红线：错误文案一律 textContent，不经 innerHTML（docs/release.md §5-0）
+    const box = document.createElement("div");
+    box.style.cssText =
+      "font-family:system-ui,sans-serif;padding:48px;max-width:560px;margin:0 auto;color:#1c1917";
+    const h1 = document.createElement("h1");
+    h1.style.cssText = "font-size:18px;margin-bottom:12px";
+    h1.textContent = "ResearchThread 数据层初始化失败";
+    const msg = document.createElement("p");
+    msg.style.cssText = "color:#666;line-height:1.6;white-space:pre-wrap";
+    msg.textContent = e instanceof Error ? e.message : String(e);
+    const hint = document.createElement("p");
+    hint.style.cssText = "color:#999;margin-top:16px";
+    hint.textContent = "请检查数据目录（~/ResearchThread）权限后重启应用。";
+    box.append(h1, msg, hint);
+    root.replaceChildren(box);
     return;
   }
 

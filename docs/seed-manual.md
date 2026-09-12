@@ -80,3 +80,11 @@ Windows 版本：如 Win10 22H2 / Win11 23H2
 - 图谱视图与整体目标冲突，保持禁用；Agent 面板是占位，尚未接真实 CLI。
 
 遇到任何「数据看起来不对」的情况，请先复制整个数据目录留证，再联系我们。谢谢！
+
+## 8. macOS 附录（Mac 种子用户）
+
+- **安装**：双击 DMG，把 ResearchThread 拖进「应用程序」。安装包未签名，首次启动若提示「无法验证开发者」：在「应用程序」里**右键 ResearchThread → 打开 → 再点「打开」**（只需一次），不要去系统设置里关 Gatekeeper。
+- **数据**：与 Windows 完全一致，存放在 `/Users/<你>/ResearchThread/`（Finder 里按 `⌘⇧G` 输入 `~/ResearchThread` 可直达）。删除应用不会删除这个目录。
+- **快照**：需要本机安装 git（`xcode-select --install` 装的 Command Line Tools 就自带）。Finder 双击启动的应用拿不到终端里的 PATH——应用已内置修复；若左下角仍出现「快照保护未生效」，装好 git 后在「设置 → 数据 → 重试」。
+- **并发规则、隐私说明、反馈模板**：与上文 Windows 部分完全相同。
+- 测试重点（Mac 版特有）：Finder 双击启动后在内置终端跑 `git --version` 应该成功；「打开数据目录」应该唤起 Finder。

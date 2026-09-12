@@ -16,8 +16,11 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-shell = "2"
+tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-global-shortcut = "2"
+# Finder/Dock 启动的 GUI 不继承 shell PATH（Tauri 官方修复，见 docs/release.md mac 章节）
+fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

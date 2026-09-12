@@ -48,8 +48,8 @@ export async function gitSnapshot(dataDir: string, label?: string): Promise<stri
   return "快照已创建";
 }
 
-/** 在资源管理器中打开目录 */
+/** 在系统文件管理器中打开目录（跨平台：Explorer / Finder / 文件管理器，经 plugin-opener） */
 export async function openInFileManager(dir: string): Promise<void> {
-  const cmd = Command.create("explorer", [dir]);
-  await cmd.spawn();
+  const { openPath } = await import("@tauri-apps/plugin-opener");
+  await openPath(dir);
 }

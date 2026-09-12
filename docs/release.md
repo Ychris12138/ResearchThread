@@ -6,26 +6,37 @@
 ## 0. 一句话流程
 
 ```bash
+# —— Windows 构建机（本机 GNU 工具链）——
 export PATH="/d/perl/c/x86_64-w64-mingw32/bin:/d/perl/c/bin:$HOME/.cargo/bin:$PATH"
 export RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu
 npx vitest run            # ① 测试全绿
 npm run build             # ② tsc + vite 构建通过
 npm run tauri build       # ③ NSIS 安装包（同上环境）
 npm run make-release      # ④ 归拢 release/（含门槛自检）
+
+# —— macOS 构建机（Apple Silicon 亦出 universal）——
+npx vitest run
+npm run build
+npm run tauri build -- --target universal-apple-darwin --bundles app,dmg   # ③ DMG
+npm run make-release      # ④ 同一脚本，darwin 下收 DMG
 ```
+
+两台机器各自生成 `release/`，发布前把 Windows 的 exe 与 macOS 的 dmg **汇总到同一份发布物**（SHA256SUMS 合并核对）。
 
 ## 1. 位置与产物（不变量）
 
 - `release/` 在仓库根、**gitignore**，内容只能由 [scripts/make-release.mjs](../scripts/make-release.mjs) 生成；脚本是入库的，产物不入库。
-- 产物固定四件套，缺一不可：
+- 产物固定集合，缺一不可：
   | 文件 | 内容 | 源头 |
   |---|---|---|
-  | `ResearchThread_<v>_x64-setup.exe` | NSIS 安装包 | `npm run tauri build` |
-  | `SHA256SUMS.txt` | 安装包与手册的 SHA-256 | 脚本计算 |
+  | `ResearchThread_<v>_x64-setup.exe` | Windows NSIS 安装包 | Windows 机 `npm run tauri build` |
+  | `ResearchThread_<v>_universal.dmg` | macOS 安装映像（Apple Silicon + Intel） | macOS 机 `tauri build --target universal-apple-darwin` |
+  | `SHA256SUMS.txt` | 安装包与手册的 SHA-256 | 脚本计算（双平台合并后核对齐全） |
   | `README.md` | 下载/校验/安装说明 + 构建提交记录 | 脚本模板 |
   | `种子测试手册.md` | 种子用户手册副本 | `docs/seed-manual.md`（只改源头，不改副本） |
 - 每次生成**整体覆盖**：`release/` 只保留最新一个版本，不堆历史；历史版本靠 git tag 重新构建复现，发布后的安装包应转存到发布渠道/网盘归档。
 - 手工改 `release/` 里任何文件 = 无效发布，下次生成会被覆盖。
+- Tauri 配置按平台拆分（构建时自动合并）：`tauri.conf.json`（公共：窗口/CSP/图标）+ `tauri.windows.conf.json`（NSIS/WebView2Loader/须知页）+ `tauri.macos.conf.json`（app+dmg/最低 macOS 12）。**不要把平台特有配置写回公共文件。**
 
 ## 2. 版本规则
 
@@ -33,13 +44,24 @@ npm run make-release      # ④ 归拢 release/（含门槛自检）
 - 发版必须先在 git 打 tag `vX.Y.Z`，tag 指向的提交 = 构建提交；从脏工作区构建会被脚本警告。
 - 0.x 为种子期：功能新增升 minor、修复升 patch；数据格式破坏性变更（见 §5）即便 0.x 也需用户确认。
 
-## 3. 打包环境（本机现状）
+## 3. 打包环境
+
+### Windows（本机现状）
 
 - 机器无 Windows SDK，用 GNU 工具链：`stable-x86_64-pc-windows-gnu` + rust-lld（`src-tauri/.cargo/config.toml` 固定），启动命令见 §0。
 - `src-tauri/WebView2Loader.dll` **勿删**：GNU 构建动态链接它，已用 `bundle.resources` 打进安装器；升级 `webview2-com-sys` 后必须同步替换该 dll 并重测安装包启动。
-- 改过 `src-tauri/capabilities/*.json` 后需 `touch src-tauri/build.rs` 强制重嵌（dev watch 不监听 capabilities）。
-- 发布前 `package-lock.json` 与 `src-tauri/Cargo.lock` 必须已提交（可复现构建的前提）。
 - 安装器形态固定：**per-user NSIS、免管理员、未签名**；SmartScreen 警告由安装须知页（`src-tauri/INSTALL-NOTES.txt`）解释，**不得**要求用户关闭 SmartScreen。
+
+### macOS（v0.1.0 起）
+
+- 前置只需 Xcode Command Line Tools（`xcode-select --install`）+ rustup + node；第一轮先 native ARM（`npm run tauri dev`），通过后再 universal。
+- universal 二进制：`rustup target add aarch64-apple-darwin x86_64-apple-darwin` 后 `npm run tauri build -- --target universal-apple-darwin --bundles app,dmg`；产物在 `src-tauri/target/universal-apple-darwin/release/bundle/dmg/`。
+- **PATH 修复是硬依赖**：Finder/Dock 启动的 GUI 不继承 shell PATH，`src-tauri/src/lib.rs` 里的 `fix_path_env::fix()` 不可移除；验收标准是 **Finder 双击启动**后 git/claude/codex 在内置终端可用（Terminal 启动可用不算过）。
+- 文件管理器走 `plugin-opener`（`openPath`），不进 shell 白名单；shell capability 按平台拆分（`capabilities/shell-macos.json` 只含 git/claude/codex/node/npm）。
+- 签名分两阶段：内测期不签名（用户走「右键 → 打开」过 Gatekeeper，手册已写）；**面向陌生用户分发前必须 Developer ID 签名 + 公证**（Tauri 支持 signing identity 自动公证），届时更新手册与 `tauri.macos.conf.json` 的签名配置。
+- `bundle.icon` 已含 `icons/icon.icns`；`minimumSystemVersion: 12.0`。
+
+通用：改过 `src-tauri/capabilities/*.json` 后需 `touch src-tauri/build.rs` 强制重嵌（dev watch 不监听 capabilities）；发布前 `package-lock.json` 与 `src-tauri/Cargo.lock` 必须已提交。
 
 ## 4. 每次发布的门槛（顺序执行，全过才发）
 
@@ -48,7 +70,9 @@ npm run make-release      # ④ 归拢 release/（含门槛自检）
 3. `npm run tauri dev` 冒烟：应用可启动、数据目录正常读取。
 4. `npm run tauri build` 成功出包。
 5. `npm run make-release`：脚本自检通过（版本三处一致；安装包不旧于源码；脏工作区警告）。**记住 SHA-256，发布渠道必须原文公布。**
-6. 干净（或隔离）Windows 环境验证——没有做过这步的包不发给用户：
+6. 干净（或隔离）环境验证——没有做过这步的包不发给用户：
+
+   **Windows：**
    - [ ] 全新安装 → 首启欢迎卡出现，数据目录创建；
    - [ ] 无 git 的机器：左下出现「快照保护未生效」持续警告（装 git 后重试可恢复）；
    - [ ] 双击两次启动：第二实例只聚焦第一个窗口（单实例）；
@@ -56,6 +80,21 @@ npm run make-release      # ④ 归拢 release/（含门槛自检）
    - [ ] 覆盖安装（升级）后数据完好；
    - [ ] 卸载 → 数据目录**仍在** → 重装后数据回来；
    - [ ] 快照恢复演练：改错/删错任务后用 `git checkout` 找回。
+
+   **macOS（v0.1.0 起，第一轮 native + 第二轮 universal 各过一遍核心项）：**
+   - [ ] DMG → 应用程序安装，Finder 双击启动（**不**从 Terminal 启动）；
+   - [ ] Finder/Dock 启动后，内置终端 `git --version` / `claude --version` / `codex --version` 可用（PATH 修复验收）；
+   - [ ] 数据目录 `~/ResearchThread` 创建、读写、重启仍在；
+   - [ ] 创建 Space/Project/Task、写 context、重启不丢；
+   - [ ] 外部编辑（Obsidian/文本编辑器）→ 冲突提示出现；
+   - [ ] Force Quit 后重启：中断写入被恢复（`.rt-bak` 机制）；
+   - [ ] 连续双击两次启动：单实例聚焦；
+   - [ ] `⌘⇧Space` 全局快捷键唤起收件箱；
+   - [ ] 「打开数据目录」在 Finder 中打开（opener）；
+   - [ ] 删除任务 → `.trash/` 可找回；
+   - [ ] 无 git 的 Mac：快照警告出现；装 git 后重试恢复；
+   - [ ] 旧 DMG → 新 DMG 覆盖升级数据完好；删 .app 卸载不删数据；
+   - [ ] 未签名 DMG 下载后：右键 → 打开可过 Gatekeeper。
 7. git commit 并打 tag `vX.Y.Z`；tag message 记录版本与 SHA-256。
 8. 发布渠道：安装包 + 公布的 SHA-256 + `release/README.md` 内容 + 种子手册。
 
@@ -84,8 +123,9 @@ npm run make-release      # ④ 归拢 release/（含门槛自检）
 
 ## 7. 范围边界（防蔓延，发布不夹带）
 
-- 只发 **Windows x64 NSIS**。macOS、安装包签名、自动更新是后续里程碑，不 sneak 进普通发版。
-- 安装器保持现有形态（中文界面 + 安装须知页 + 语言选择器）；不加自定义安装页面、不捆绑其他软件。
+- 发布目标：**Windows x64 NSIS + macOS 12+ universal DMG（未签名内测期）**。Mac App Store、自动更新是后续里程碑，不 sneak 进普通发版。
+- 安装器形态固定：Windows 中文 NSIS + 安装须知页；macOS 走标准 DMG 拖入 Applications。不加自定义安装页面、不捆绑其他软件。
+- 面向陌生用户的 macOS 公开分发前，**必须** Developer ID 签名 + 公证（熟人内测可用「右键 → 打开」过渡，手册已写）。
 - 反目标照旧（AGENTS.md）：不做项目管理软件、不做笔记软件、不做 chat-first。
 
 ## 8. 发布记录
