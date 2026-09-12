@@ -22,8 +22,8 @@ ResearchThread 是一个**本地优先**的桌面工具（Tauri 2，macOS + Wind
 
 ## 当前状态
 
-- 更新日期：2026-09-11
-- 阶段：**M3 完成 + 种子发布加固**（M1/M2/M3 全部落地，实机验证）——发布前审阅确认的九项门槛已全部代码落地：
+- 更新日期：2026-09-12
+- 阶段：**M3 完成 + 种子发布加固 + macOS 实机验证通过**（M1/M2/M3 全部落地，实机验证）——发布前审阅确认的九项门槛已全部代码落地：
   - **事务式写入**（`storage/atomicWrite.ts`）：写 `.rt-tmp` → 原文件让位 `.rt-bak` → 新内容就位 → 清备份；任何一步失败或进程中断后，**原文件或备份必有一个可恢复**；启动时 `recoverInterruptedWrites()` 扫描恢复并记账。测试注入 rename 失败/持续故障/崩溃残留全覆盖
   - **单实例**（`tauri-plugin-single-instance`）：第二实例启动即聚焦已有主窗口后退出，杜绝双 watcher + 同名 tmp/bak 互踩
   - **外部编辑并发策略**：storage 保存前比对磁盘内容与应用最后已知内容（`seen` 缓存，读/写后更新），不一致抛 `ExternalConflictError`，UI 弹「覆盖保存（acknowledge 后重试）/ 重新加载 / 取消」。`updateTaskMeta` / `appendEntry` / `updateEntry` / `updateProjectDescription` / `saveWeekly` **五路全部受保护**（appendEntry 同样检查冲突后整文件重写，比纯追加更安全）
@@ -37,7 +37,8 @@ ResearchThread 是一个**本地优先**的桌面工具（Tauri 2，macOS + Wind
   - **发布物料**：关于页读真实版本（`getVersion()`）标「种子测试版」；[docs/seed-manual.md](docs/seed-manual.md) 种子手册——隐私边界（**明确撤回「打包数据目录反馈」**，改为脱敏反馈模板）、SmartScreen 安装步骤、卸载数据保留说明、外部编辑并发规则
   - **发布包与安装提示**：`npm run make-release`（[scripts/make-release.mjs](scripts/make-release.mjs)）平台感知（win 收 NSIS exe / darwin 收 DMG），归拢安装包、SHA256SUMS、README、种子手册到 `release/`（gitignore，脚本可重复生成）；安装器中文化（`bundle.windows.nsis.languages` 简中+英文+语言选择器）并以 `bundle.license`（`src-tauri/INSTALL-NOTES.txt`）在安装前展示中文安装须知；应用首启弹欢迎卡（数据位置/快照警告含义/脱敏反馈，`settings.introSeen` 持久化开关）
 - **macOS 适配（v0.1.0，PR feat/v0.1-macos-support）**：Tauri 配置拆三文件（`tauri.conf.json` 公共 / `tauri.windows.conf.json` NSIS+WebView2Loader / `tauri.macos.conf.json` app+dmg+minimumSystemVersion 12.0，构建时自动合并）；文件管理器改 `plugin-opener`（`openPath`，替代硬编码 explorer）；**Finder/Dock 启动 PATH 修复**（`fix-path-env` crate，lib.rs setup 里 `fix()`，mac 验收 = Finder 双击启动后终端 git/claude/codex 可用）；shell capability 拆平台（`shell-windows.json` / `shell-macos.json`——mac 只留 git/claude/codex/npm/node，explorer/cmd/powershell 不进 mac 白名单）；universal 构建命令与 mac 测试矩阵见 docs/release.md §0/§3/§4-6。**签名两阶段**：内测不签名（**macOS 15+ 无「右键→打开」通道**，被拦后走「系统设置→隐私与安全性→仍要打开」，实机 2026-09-12 确认；macOS 12–14 才是右键→打开），面向陌生用户前必须 Developer ID + 公证
-- 下一步：干净 Windows 账户实测（首装 / 无 git / 无 CLI / 双开 / 升级 / 卸载重装 / 快照恢复演练）→ 全部过门后打 release tag 发 **Windows x64 受控种子版**；随后回到 **第二步阶梯 2a**（AgentRunner CLI 后端，见下条与 PART2.md）
+- **macOS 实机验证（2026-09-12，issue #4 已回报）**：universal DMG（lipo x86_64+arm64）、Finder 启动 PATH 三件套（git/claude/codex 全通）、数据持久、快照、.trash、冲突链路、单实例、⌘⇧Space、DMG 安装/重装/卸载保留全过；**修复 P1**：tauri-plugin-fs 点文件开关只认 `plugins.fs` 插件配置（capabilities 同名字段被忽略），Unix 默认拒绝点路径导致 macOS 数据层初始化必失败（`3e1ab0b`）；**确认 macOS 15+ 无「右键打开」Gatekeeper 通道**（真实下载实测），指引按系统版本分流（`51c45a8`）。待办 issue：DMG 安装须知文件、首启 quarantine 检测提示卡、Developer ID 签名+公证
+- 下一步：Windows 侧拉取分支回归（fs 修复对 Windows no-op，跑 vitest + NSIS 重归拢）→ 审阅合并 PR #3 → 干净 Windows 账户实测（首装 / 无 git / 无 CLI / 双开 / 升级 / 卸载重装 / 快照恢复演练）→ 全部过门后打 release tag 发 **Windows x64 受控种子版 + macOS universal DMG**；随后回到 **第二步阶梯 2a**（AgentRunner CLI 后端，见下条与 PART2.md）
 - 第二步技术报告见 [PART2.md](PART2.md)：CLI 后端选型（claude 首选/codex 坑清单）、MCP 工具面与 will_write 归属协议、2c 解析器选型、风险登记册与排期——**实施 2a–2d 前必读**
 - **Windows 构建环境（本机）**：Rust stable-msvc 装了但**缺 Windows SDK**（提权安装 SDK 未获批准）；当前用 `stable-x86_64-pc-windows-gnu` + `rust-lld` + Strawberry Perl 的 dlltool 编译通过。**启动命令**：
   ```bash
