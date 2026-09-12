@@ -28,8 +28,13 @@
         { "path": "$HOME/ResearchThread/**" }
       ]
     },
-    "opener:default",
-    "opener:allow-open-path",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        { "path": "$HOME/ResearchThread" },
+        { "path": "$HOME/ResearchThread/**" }
+      ]
+    },
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-unregister-all",

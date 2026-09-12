@@ -1,13 +1,16 @@
-// scripts/make-release.mjs — 把发布产物归拢到 release/（可重复执行，平台感知）。
-// Windows（win32）：收 NSIS 安装包（ResearchThread_<v>_x64-setup.exe）
-// macOS（darwin）：收 DMG（native 或 universal-apple-darwin 构建产物，取最新）
-// 共同输出：release/<安装包>、SHA256SUMS.txt、README.md、种子测试手册.md
+// scripts/make-release.mjs — 把发布产物归拢到 release/（可重复执行，平台感知，跨平台可汇总）。
+// Windows（win32）：收 NSIS 安装包 ResearchThread_<v>_x64-setup.exe
+// macOS（darwin）：只收 universal DMG（src-tauri/target/universal-apple-darwin/...），
+//   严格匹配 productName+version，没有就失败——native/ARM-only DMG 不允许当发布物。
+// 汇总语义：release/ 内「当前版本」的安装包跨平台累积（本脚本只清理旧版本产物），
+//   SHA256SUMS.txt / README.md 每次按 release/ 内实际存在的安装包全量重算——
+//   把对侧安装包拷进 release/ 后重跑本脚本，即得覆盖双平台的统一校验和。
 // 用法：先 npm run tauri build，再 npm run make-release。
 // 发版要求与红线见 docs/release.md；本脚本强制：版本三处一致，其余为警告。
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +19,7 @@ const isMac = process.platform === "darwin";
 
 const conf = JSON.parse(await readFile(join(root, "src-tauri/tauri.conf.json"), "utf8"));
 const version = conf.version;
+const productName = conf.productName;
 
 const sha256 = async (path) => {
   const buf = await readFile(path);
@@ -43,32 +47,28 @@ if (pkg.version !== version || cargoVersion !== version) {
   process.exit(1);
 }
 
-// 2) 定位本平台的安装包
+// 2) 定位本平台安装包（严格版本匹配；macOS 只认 universal）
+const installerRe = new RegExp(`^${productName}_${version}_.+\\.(exe|dmg)$`);
 async function findInstaller() {
   if (!isMac) {
-    const name = `ResearchThread_${version}_x64-setup.exe`;
+    const name = `${productName}_${version}_x64-setup.exe`;
     return { src: join(root, "src-tauri/target/release/bundle/nsis", name), name };
   }
-  // native 构建在 target/release/，universal 在 target/universal-apple-darwin/release/
-  const bundleRoots = [
-    join(root, "src-tauri/target/universal-apple-darwin/release/bundle/dmg"),
-    join(root, "src-tauri/target/release/bundle/dmg"),
-  ];
+  // 只扫 universal 目录：native/ARM-only DMG 不是发布物，绝不 fallback
+  const dmgDir = join(root, "src-tauri/target/universal-apple-darwin/release/bundle/dmg");
   const found = [];
-  for (const dir of bundleRoots) {
-    try {
-      for (const f of await readdir(dir)) {
-        if (f.endsWith(".dmg")) {
-          const full = join(dir, f);
-          found.push({ src: full, name: f, mtime: (await stat(full)).mtimeMs });
-        }
+  try {
+    for (const f of await readdir(dmgDir)) {
+      if (installerRe.test(f)) {
+        const full = join(dmgDir, f);
+        found.push({ src: full, name: f, mtime: (await stat(full)).mtimeMs });
       }
-    } catch {
-      // 目录不存在（未做该形态构建）
     }
+  } catch {
+    // 目录不存在（未做 universal 构建）
   }
   if (found.length === 0) return null;
-  found.sort((a, b) => b.mtime - a.mtime); // 取最新（universal 优先构建时通常也更新）
+  found.sort((a, b) => b.mtime - a.mtime);
   return found[0];
 }
 
@@ -76,8 +76,8 @@ const installer = await findInstaller();
 if (!installer) {
   console.error(
     isMac
-      ? "找不到 DMG 产物——先运行 npm run tauri build -- --bundles app,dmg"
-      : `找不到安装包 ResearchThread_${version}_x64-setup.exe——先运行 npm run tauri build`,
+      ? `找不到 universal DMG（${productName}_${version}_*.dmg @ src-tauri/target/universal-apple-darwin/release/bundle/dmg/）——先运行 npm run tauri build -- --target universal-apple-darwin --bundles app,dmg。native/ARM-only DMG 不能作为发布物。`
+      : `找不到安装包 ${productName}_${version}_x64-setup.exe——先运行 npm run tauri build`,
   );
   process.exit(1);
 }
@@ -116,78 +116,99 @@ if (staleSources.length > 0) {
   console.warn(`⚠ 安装包早于 ${staleSources.length} 个较新的源文件（如 ${staleSources[0]}）——确认已重新 npm run tauri build`);
 }
 
-// —— 生成 release/（整体覆盖，只保留最新版本） ——
+// —— 生成 release/ ——
 
 const outDir = join(root, "release");
 await mkdir(outDir, { recursive: true });
 
+// 清理旧版本产物（当前版本的安装包跨平台累积，不删对侧文件）
+const oldArtifactRe = new RegExp(`^${productName}_\\d+\\.\\d+\\.\\d+_.+\\.(exe|dmg)$`);
+for (const f of await readdir(outDir)) {
+  if (oldArtifactRe.test(f) && !installerRe.test(f)) {
+    await rm(join(outDir, f), { force: true });
+    console.log(`已清理旧版本产物：${f}`);
+  }
+}
+
 const installerDest = join(outDir, installer.name);
 await copyFile(installer.src, installerDest);
 
-const installerHash = await sha256(installerDest);
-await copyFile(join(root, "docs/seed-manual.md"), join(outDir, "种子测试手册.md"));
+// 收集 release/ 内当前版本的全部安装包（含对侧拷入的），统一重算校验和
+const bundled = (await readdir(outDir))
+  .filter((f) => installerRe.test(f))
+  .sort();
+const manualName = "种子测试手册.md";
+await copyFile(join(root, "docs/seed-manual.md"), join(outDir, manualName));
 
-const manualHash = await sha256(join(outDir, "种子测试手册.md"));
-
+const hashes = {};
+for (const f of [...bundled, manualName]) {
+  hashes[f] = await sha256(join(outDir, f));
+}
 await writeFile(
   join(outDir, "SHA256SUMS.txt"),
-  `${installerHash}  ${installer.name}\n${manualHash}  种子测试手册.md\n`,
+  [...bundled, manualName].map((f) => `${hashes[f]}  ${f}`).join("\n") + "\n",
   "utf8",
 );
 
 const buildDate = new Date().toISOString().slice(0, 10);
-const platformLabel = isMac ? "macOS（universal：Apple Silicon + Intel）" : "Windows x64";
-const verifyCmd = isMac
-  ? `shasum -a 256 ./${installer.name}`
-  : `Get-FileHash .\\${installer.name}`;
-const installSteps = isMac
-  ? `1. 核对校验值：终端执行 \`${verifyCmd}\`，与 \`SHA256SUMS.txt\` 或发布页公布的值一致。
-2. 双击 DMG，把 ResearchThread 拖入「应用程序」。
-3. 首次启动（未签名构建）会被拦截，按系统版本放行（只需一次）：
-   - macOS 15 及更高：弹「移到废纸篓 / 完成」时点「**完成**」，再打开 **系统设置 → 隐私与安全性**，底部点「**仍要打开**」并确认。
-   - macOS 12–14：在「应用程序」里**右键 → 打开 → 打开**。
-   应用未来做 Developer ID 签名 + 公证后此步可免（docs/release.md §7）。`
-  : `1. 核对校验值：PowerShell 执行 \`${verifyCmd}\`，与 \`SHA256SUMS.txt\` 或发布页公布的值一致。
-2. 双击安装包。未签名会过 SmartScreen：**「更多信息」→「仍要运行」**，不需要关闭 SmartScreen。
-3. 首次启动应用会弹欢迎提示（数据位置 / 快照警告含义 / 反馈方式），照读一遍即可。`;
-const uninstallNote = isMac
-  ? `卸载 = 把「应用程序」里的 ResearchThread 删除；\`~/ResearchThread\` 数据目录**不会**被删除。`
-  : `卸载不会删除数据目录；程序装在 \`%LOCALAPPDATA%\\ResearchThread\`（约 10 MB）。`;
+const platformRows = bundled
+  .map((f) =>
+    f.endsWith(".exe")
+      ? `| \`${f}\` | Windows x64 安装包（NSIS，per-user，免管理员；中文界面与安装须知页） |`
+      : `| \`${f}\` | macOS 安装映像（DMG，universal：Apple Silicon + Intel 切片；Intel 硬件未单独实测） |`,
+  )
+  .join("\n");
+const verifyLines = bundled
+  .map((f) => `- \`${f}\`：\`${hashes[f]}\``)
+  .join("\n");
 
 await writeFile(
   join(outDir, "README.md"),
-  `# ResearchThread ${version} 种子发布包（${platformLabel}）
+  `# ResearchThread ${version} 种子发布包
 
 本目录为受控种子测试版发布物（scripts/make-release.mjs 生成，可重复执行）。
 发版要求与红线见仓库 docs/release.md。
 
 | 文件 | 说明 |
 |---|---|
-| \`${installer.name}\` | 安装包${isMac ? "（DMG，universal 二进制）" : "（NSIS，per-user，免管理员；中文界面与安装须知页）"} |
-| \`SHA256SUMS.txt\` | 校验值（发布渠道需原文公布） |
-| \`种子测试手册.md\` | 种子用户手册：数据/快照/并发/隐私与脱敏反馈模板 |
+${platformRows}
+| \`SHA256SUMS.txt\` | 校验值（发布渠道需原文公布，覆盖下方全部安装包） |
+| \`${manualName}\` | 种子用户手册：数据/快照/并发/隐私与脱敏反馈模板 |
+
+## 校验值（SHA-256）
+
+${verifyLines}
 
 ## 安装步骤
 
-${installSteps}
+**Windows：**
+1. 核对校验值：PowerShell 执行 \`Get-FileHash .\\<安装包>\`，与 \`SHA256SUMS.txt\` 或发布页公布的值一致。
+2. 双击安装包。未签名会过 SmartScreen：**「更多信息」→「仍要运行」**，不需要关闭 SmartScreen。
+3. 首次启动应用会弹欢迎提示（数据位置 / 快照警告含义 / 反馈方式），照读一遍即可。
+
+**macOS：**
+1. 核对校验值：终端执行 \`shasum -a 256 ./<DMG>\`，与 \`SHA256SUMS.txt\` 或发布页公布的值一致。
+2. 双击 DMG，把 ResearchThread 拖入「应用程序」。
+3. 首次启动（未签名构建）：先试右键 ResearchThread → 打开；macOS 15+ 已移除右键打开，改在终端执行 \`xattr -cr /Applications/ResearchThread.app\` 后正常启动。
+4. 应用为 universal 二进制（Apple Silicon + Intel 切片），实际硬件验证在 Apple Silicon 上完成，Intel 未单独实测——发布页按此口径说明。
 
 ## 快速核对
 
-- 数据目录 \`~/ResearchThread\` 由应用首次启动创建，卸载**不会**删除。${uninstallNote}
+- 数据目录 \`~/ResearchThread\` 由应用首次启动创建，卸载**不会**删除（Windows 卸载只删程序本体；macOS 删 .app 同理）。
 - 每天首次启动自动 git 快照；无 git 机器会显示「快照保护未生效」持续警告（数据仍正常保存）。
 
 ## 构建信息
 
 - 版本：${version}（tauri.conf.json = package.json = Cargo.toml）
-- 平台：${platformLabel}
+- 本次生成平台：${isMac ? "macOS" : "Windows"}（另一平台安装包由对侧构建后拷入本目录重跑本脚本汇总）
 - 构建提交：\`${gitHead}\`${gitDirty ? "（⚠ 工作区不干净）" : ""}
 - 构建日期：${buildDate}
-- ${installer.name}
-- SHA-256：\`${installerHash}\`
+- 本次归拢：${installer.name}
 `,
   "utf8",
 );
 
 console.log(`release/ 已生成（构建提交 ${gitHead}${gitDirty ? "，工作区不干净" : ""}）：`);
-console.log(`  ${installer.name}  (SHA-256 ${installerHash})`);
-console.log(`  SHA256SUMS.txt / README.md / 种子测试手册.md`);
+console.log(`  本次归拢 ${installer.name}  (SHA-256 ${hashes[installer.name]})`);
+console.log(`  覆盖安装包：${bundled.join(", ") || "(无)"}`);
+console.log(`  SHA256SUMS.txt / README.md / ${manualName}`);

@@ -21,7 +21,7 @@ npm run tauri build -- --target universal-apple-darwin --bundles app,dmg   # ③
 npm run make-release      # ④ 同一脚本，darwin 下收 DMG
 ```
 
-两台机器各自生成 `release/`，发布前把 Windows 的 exe 与 macOS 的 dmg **汇总到同一份发布物**（SHA256SUMS 合并核对）。
+两台机器各自运行 `make-release` 生成自家产物；**汇总**：把对侧安装包拷进本机 `release/` 后重跑一次 `npm run make-release`——脚本按目录内实际存在的当前版本安装包全量重算 `SHA256SUMS.txt` 与 `README.md`，得到覆盖双平台的统一发布物。
 
 ## 1. 位置与产物（不变量）
 
@@ -30,11 +30,13 @@ npm run make-release      # ④ 同一脚本，darwin 下收 DMG
   | 文件 | 内容 | 源头 |
   |---|---|---|
   | `ResearchThread_<v>_x64-setup.exe` | Windows NSIS 安装包 | Windows 机 `npm run tauri build` |
-  | `ResearchThread_<v>_universal.dmg` | macOS 安装映像（Apple Silicon + Intel） | macOS 机 `tauri build --target universal-apple-darwin` |
-  | `SHA256SUMS.txt` | 安装包与手册的 SHA-256 | 脚本计算（双平台合并后核对齐全） |
+  | `ResearchThread_<v>_universal.dmg` | macOS 安装映像（Apple Silicon + Intel 切片；**Intel 硬件未单独实测**，发布页须按此口径说明） | macOS 机 `tauri build --target universal-apple-darwin` |
+  | `SHA256SUMS.txt` | 安装包与手册的 SHA-256 | 脚本按 release/ 内实际安装包**全量重算**（跨平台统一，见下方汇总语义） |
   | `README.md` | 下载/校验/安装说明 + 构建提交记录 | 脚本模板 |
   | `种子测试手册.md` | 种子用户手册副本 | `docs/seed-manual.md`（只改源头，不改副本） |
-- 每次生成**整体覆盖**：`release/` 只保留最新一个版本，不堆历史；历史版本靠 git tag 重新构建复现，发布后的安装包应转存到发布渠道/网盘归档。
+- **汇总语义（消解双平台覆盖矛盾）**：脚本只清理「旧版本」安装包；**当前版本**的安装包跨平台累积——Windows 跑完把 dmg 拷进来重跑、或在 macOS 侧反向操作，`SHA256SUMS.txt` 都会自动覆盖双平台，无需手工拼校验和文件。
+- macOS 侧**只认 universal DMG**（`target/universal-apple-darwin/...`），严格匹配 `productName + version` 文件名；native/ARM-only DMG 不是发布物，脚本直接失败、不 fallback。
+- 历史（旧版本）不堆在 `release/`：发布后的安装包转存到发布渠道/网盘归档，靠 git tag 重新构建复现。
 - 手工改 `release/` 里任何文件 = 无效发布，下次生成会被覆盖。
 - Tauri 配置按平台拆分（构建时自动合并）：`tauri.conf.json`（公共：窗口/CSP/图标）+ `tauri.windows.conf.json`（NSIS/WebView2Loader/须知页）+ `tauri.macos.conf.json`（app+dmg/最低 macOS 12）。**不要把平台特有配置写回公共文件。**
 
@@ -55,7 +57,7 @@ npm run make-release      # ④ 同一脚本，darwin 下收 DMG
 ### macOS（v0.1.0 起）
 
 - 前置只需 Xcode Command Line Tools（`xcode-select --install`）+ rustup + node；第一轮先 native ARM（`npm run tauri dev`），通过后再 universal。
-- universal 二进制：`rustup target add aarch64-apple-darwin x86_64-apple-darwin` 后 `npm run tauri build -- --target universal-apple-darwin --bundles app,dmg`；产物在 `src-tauri/target/universal-apple-darwin/release/bundle/dmg/`。
+- universal 二进制：`rustup target add aarch64-apple-darwin x86_64-apple-darwin` 后 `npm run tauri build -- --target universal-apple-darwin --bundles app,dmg`；产物在 `src-tauri/target/universal-apple-darwin/release/bundle/dmg/`。**发布口径**：universal 含 Intel 切片（`lipo` 可验证），但实际硬件验证只在 Apple Silicon 上做过——release note 必须写「Tested on Apple Silicon; Intel hardware has not yet been separately validated」，不得声称 Intel 已全面验证。
 - **PATH 修复是硬依赖**：Finder/Dock 启动的 GUI 不继承 shell PATH，`src-tauri/src/lib.rs` 里的 `fix_path_env::fix()` 不可移除；验收标准是 **Finder 双击启动**后 git/claude/codex 在内置终端可用（Terminal 启动可用不算过）。
 - 文件管理器走 `plugin-opener`（`openPath`），不进 shell 白名单；shell capability 按平台拆分（`capabilities/shell-macos.json` 只含 git/claude/codex/node/npm）。
 - 签名分两阶段：内测期不签名（未签名包被 Gatekeeper 拦截后，macOS 15+ 走「系统设置 → 隐私与安全性 → 仍要打开」放行；macOS 12–14 才有「右键 → 打开」——**「右键打开」通道在 macOS 15 Sequoia 起已被移除**，2026-09-12 M5/macOS 26.6 实测确认，手册已按系统版本分开写）；**面向陌生用户分发前必须 Developer ID 签名 + 公证**（Tauri 支持 signing identity 自动公证），届时更新手册与 `tauri.macos.conf.json` 的签名配置。

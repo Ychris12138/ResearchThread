@@ -1,4 +1,4 @@
-# ResearchThread 种子测试手册（Windows x64 · 0.1.0 Seed）
+# ResearchThread 种子测试手册（Windows x64 + macOS · 0.1.0 Seed）
 
 感谢参与种子测试。这份手册说明怎么装、数据放在哪、怎么保护数据、以及反馈时我们收集什么、**不**收集什么。
 
@@ -75,7 +75,7 @@ Windows 版本：如 Win10 22H2 / Win11 23H2
 
 ## 7. 已知限制（种子版）
 
-- 仅 Windows x64；macOS、自动更新、安装包签名在后续版本。
+- Windows x64 + macOS（universal：Apple Silicon + Intel 切片；实际硬件验证在 Apple Silicon 完成，Intel 未单独实测）；自动更新、安装包签名在后续版本。
 - 周文档为实验功能：同一周「重新生成」会覆盖手工修改（有二次确认，git 历史可找回）。
 - 图谱视图与整体目标冲突，保持禁用；Agent 面板是占位，尚未接真实 CLI。
 

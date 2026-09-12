@@ -48,11 +48,11 @@ ResearchThread 是一个**本地优先**的桌面工具（Tauri 2，macOS + Wind
   ```
   `src-tauri/.cargo/config.toml` 固定了 rust-lld 链接器；`Cargo.toml` 的 lib crate-type 只保留 `["lib"]`（cdylib 会撞 65535 导出上限）。改 `capabilities/*.json` 后需 `touch build.rs && cargo build` 强制重嵌（dev watch 不监听 capabilities）。
 - **打包安装器**：`npm run tauri build`（同上环境）→ NSIS 安装包在 `src-tauri/target/release/bundle/nsis/`，per-user 安装免管理员；随后 `npm run make-release` 归拢发布包到 `release/`（安装包 + SHA256SUMS + README + 种子手册）。**坑**：GNU 构建动态链接 `WebView2Loader.dll`（dev 时由构建目录提供，安装后缺失会导致启动即退 EXIT=127）——已通过 `bundle.resources` 打进安装器（`src-tauri/WebView2Loader.dll`，勿删）；升级 webview2-com-sys 后需同步更新该 dll。安装器未签名，首次安装会过 SmartScreen 警告（安装须知页已说明「更多信息→仍要运行」）。
-- 终端面板 shell 白名单：`capabilities/default.json` 中 `shell:allow-spawn`/`shell:allow-execute` 的 allow 条目（name/cmd/args:true），新增可执行程序需同步加两处
+- 终端面板 shell 白名单：按平台拆分在 `capabilities/shell-windows.json` / `capabilities/shell-macos.json` 的 `shell:allow-spawn`/`shell:allow-execute` allow 条目（name/cmd/args:true），新增可执行程序需同步加两处（其余公共能力在 `capabilities/common.json`）
 
 ## 关键决策（改动前必须与用户确认）
 
-1. **存储 = Markdown 文件树 + YAML frontmatter，不用数据库**。理由：第二步 agent 经 MCP 工具读写（零迁移）；Obsidian 可打开同一目录；git 提供版本历史。数据目录（默认 `~/ResearchThread/`，可在设置中修改）与代码仓库分离。**文件树是项目地图的唯一事实源**，一切地图视图都是 `get_project_map()` 的派生渲染，绝不持久化为第二事实源。
+1. **存储 = Markdown 文件树 + YAML frontmatter，不用数据库**。理由：第二步 agent 经 MCP 工具读写（零迁移）；Obsidian 可打开同一目录；git 提供版本历史。数据目录固定 `~/ResearchThread/`（当前不提供设置项修改）与代码仓库分离。**文件树是项目地图的唯一事实源**，一切地图视图都是 `get_project_map()` 的派生渲染，绝不持久化为第二事实源。
 2. **storage 拆分为纯核心 + IO 适配器**（`core.ts` 无 Tauri API，`fsAdapter.ts` 注入 `tauri-plugin-fs`）。目的：2b 阶段同一核心配 `node:fs` 即可跑成 MCP server。**storage 写回契约**（宽松读 / 规范写 / 字段级合并保留未知字段 / 原子写 / 容忍 CRLF）见 PLAN.md 第三节，是数据完整性的关键，**违反契约的改动必须有测试覆盖**。
 3. **起步零自定义 Rust**：文件 IO 走官方 `tauri-plugin-fs` 的 JS API。极简是第一阶段的起步策略而非长期约束——重大引入（如真 PTY）前与用户确认即可；**PTY 已降级为远期可选**（对话面板出现后终端退化为工具抽屉）。
 4. **前端 = React 19 + Vite + Tailwind v4（2026-09-10 定）**：用户采纳外部按 UI.md 交付的 UI，并明确「可以扩大规模，只要匹配需求」。集成时剥离其 SSR（TanStack Start/Nitro）、登录（better-auth）、数据库（pglite/pg/kysely）——本地优先单机桌面应用不需要这些。**`DataAccess` 接口（UI.md 第 2 节）是 UI 与 storage 的唯一边界**，UI 组件不得绕过它触文件或自建数据。原「M1 末评估框架去留」的决策点提前完成。交付中超出 M1 范围的视图（搜索/今日/周报/图谱/agent 对话）按插件门控保留、默认关闭，不投入打磨（图谱与反目标冲突，保持禁用）。
